@@ -1,0 +1,176 @@
+"use client";
+
+import { useState } from "react";
+import { productosDePrueba } from "@/librerias/productosDePrueba";
+import { calcularTotales, formatearPesos } from "@/librerias/impuestos";
+import type { LineaDeVenta, Producto } from "@/tipos/producto";
+
+export default function PaginaVentas() {
+  const [busqueda, setBusqueda] = useState("");
+  const [lineas, setLineas] = useState<LineaDeVenta[]>([]);
+  const [aviso, setAviso] = useState("");
+
+  const textoBuscado = busqueda.trim().toLowerCase();
+  const coincidencias = textoBuscado
+    ? productosDePrueba.filter((producto) =>
+        producto.nombre.toLowerCase().includes(textoBuscado)
+      )
+    : [];
+
+  const totales = calcularTotales(lineas);
+
+  function agregarProducto(producto: Producto) {
+    setLineas((actuales) => {
+      const existente = actuales.find(
+        (linea) => linea.producto.codigoDeBarras === producto.codigoDeBarras
+      );
+      if (existente) {
+        return actuales.map((linea) =>
+          linea === existente ? { ...linea, cantidad: linea.cantidad + 1 } : linea
+        );
+      }
+      return [...actuales, { producto, cantidad: 1 }];
+    });
+    setBusqueda("");
+    setAviso("");
+  }
+
+  function cambiarCantidad(codigoDeBarras: string, cambio: number) {
+    setLineas((actuales) =>
+      actuales
+        .map((linea) =>
+          linea.producto.codigoDeBarras === codigoDeBarras
+            ? { ...linea, cantidad: linea.cantidad + cambio }
+            : linea
+        )
+        .filter((linea) => linea.cantidad > 0)
+    );
+  }
+
+  function manejarBusqueda(evento: React.FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const texto = busqueda.trim();
+    if (!texto) return;
+
+    const porCodigo = productosDePrueba.find(
+      (producto) => producto.codigoDeBarras === texto
+    );
+    if (porCodigo) {
+      agregarProducto(porCodigo);
+      return;
+    }
+    if (coincidencias.length === 1) {
+      agregarProducto(coincidencias[0]);
+      return;
+    }
+    setAviso(
+      coincidencias.length === 0
+        ? "No se encontró ningún producto."
+        : "Hay varios productos, elige uno de la lista."
+    );
+  }
+
+  return (
+    <>
+      <h1 className="text-3xl font-bold">Ventas</h1>
+
+      <form onSubmit={manejarBusqueda} className="mt-4 flex flex-col gap-1">
+        <label htmlFor="busqueda" className="font-semibold">
+          Escanea el código de barras o busca por nombre
+        </label>
+        <input
+          id="busqueda"
+          type="text"
+          value={busqueda}
+          onChange={(evento) => {
+            setBusqueda(evento.target.value);
+            setAviso("");
+          }}
+          className="min-h-12 rounded-lg border border-borde bg-superficie px-3"
+        />
+        {aviso && (
+          <p role="alert" className="text-sm text-peligro">
+            {aviso}
+          </p>
+        )}
+      </form>
+
+      {coincidencias.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-2">
+          {coincidencias.map((producto) => (
+            <li key={producto.codigoDeBarras}>
+              <button
+                type="button"
+                onClick={() => agregarProducto(producto)}
+                className="flex min-h-12 w-full items-center justify-between rounded-lg border border-borde bg-superficie px-4 text-left hover:bg-fondo"
+              >
+                <span>{producto.nombre}</span>
+                <span className="font-semibold">
+                  {formatearPesos(producto.precioDeVenta)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <section className="mt-6 rounded-xl border border-borde bg-superficie p-4">
+        <h2 className="text-xl font-bold">Productos de la venta</h2>
+
+        {lineas.length === 0 ? (
+          <p className="mt-2 text-texto-suave">Aún no hay productos en esta venta.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-3">
+            {lineas.map(({ producto, cantidad }) => (
+              <li
+                key={producto.codigoDeBarras}
+                className="flex flex-wrap items-center justify-between gap-2 border-b border-borde pb-3"
+              >
+                <div>
+                  <p className="font-semibold">{producto.nombre}</p>
+                  <p className="text-sm text-texto-suave">
+                    {formatearPesos(producto.precioDeVenta)} c/u, antes de impuestos
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label={`Quitar una unidad de ${producto.nombre}`}
+                    onClick={() => cambiarCantidad(producto.codigoDeBarras, -1)}
+                    className="min-h-12 min-w-12 rounded-lg border border-borde font-bold"
+                  >
+                    −
+                  </button>
+                  <span aria-live="polite" className="min-w-8 text-center font-semibold">
+                    {cantidad}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Agregar una unidad de ${producto.nombre}`}
+                    onClick={() => cambiarCantidad(producto.codigoDeBarras, 1)}
+                    className="min-h-12 min-w-12 rounded-lg border border-borde font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <dl className="mt-4 grid grid-cols-2 gap-1">
+          <dt>Subtotal</dt>
+          <dd className="text-right">{formatearPesos(totales.subtotal)}</dd>
+          <dt>IVA</dt>
+          <dd className="text-right">{formatearPesos(totales.iva)}</dd>
+          <dt>Impuesto al consumo</dt>
+          <dd className="text-right">{formatearPesos(totales.impuestoAlConsumo)}</dd>
+          <dt className="text-xl font-bold">Total</dt>
+          <dd className="text-right text-xl font-bold text-primario">
+            {formatearPesos(totales.total)}
+          </dd>
+        </dl>
+      </section>
+    </>
+  );
+}
