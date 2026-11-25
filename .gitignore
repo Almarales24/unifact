@@ -35,3 +35,12 @@ Thumbs.db
 *.dump
 *.backup
 /exportaciones/
+
+# Archivos de ejemplo de Next.js y archivos de asistentes de IA
+AGENTS.md
+CLAUDE.md
+/public/file.svg
+/public/globe.svg
+/public/next.svg
+/public/vercel.svg
+/public/window.svg
