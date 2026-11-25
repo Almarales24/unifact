@@ -1,14 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { PanelDePagos } from "@/componentes/PanelDePagos";
 import { productosDePrueba } from "@/librerias/productosDePrueba";
 import { calcularTotales, formatearPesos } from "@/librerias/impuestos";
+import { resumirPagos } from "@/librerias/pagos";
 import type { LineaDeVenta, Producto } from "@/tipos/producto";
+import type { MedioDePago, Pago } from "@/tipos/pago";
 
 export default function PaginaVentas() {
   const [busqueda, setBusqueda] = useState("");
   const [lineas, setLineas] = useState<LineaDeVenta[]>([]);
   const [aviso, setAviso] = useState("");
+  const [pagos, setPagos] = useState<Pago[]>([]);
+  const [esMayorDeEdad, setEsMayorDeEdad] = useState(false);
+  const [mensajeDeVenta, setMensajeDeVenta] = useState("");
 
   const textoBuscado = busqueda.trim().toLowerCase();
   const coincidencias = textoBuscado
@@ -18,6 +24,16 @@ export default function PaginaVentas() {
     : [];
 
   const totales = calcularTotales(lineas);
+  const resumen = resumirPagos(pagos, totales.total);
+
+  const motivosPendientes: string[] = [];
+  if (lineas.length === 0) motivosPendientes.push("Agrega al menos un producto.");
+  if (!esMayorDeEdad) motivosPendientes.push("Confirma que el cliente es mayor de edad.");
+  if (lineas.length > 0 && resumen.faltante > 0)
+    motivosPendientes.push("Falta registrar el pago completo.");
+  if (!resumen.cambioValido)
+    motivosPendientes.push("El valor que sobra no se puede devolver con ese medio de pago.");
+  const puedeCerrar = motivosPendientes.length === 0;
 
   function agregarProducto(producto: Producto) {
     setLineas((actuales) => {
@@ -33,6 +49,7 @@ export default function PaginaVentas() {
     });
     setBusqueda("");
     setAviso("");
+    setMensajeDeVenta("");
   }
 
   function cambiarCantidad(codigoDeBarras: string, cambio: number) {
@@ -68,6 +85,25 @@ export default function PaginaVentas() {
         ? "No se encontró ningún producto."
         : "Hay varios productos, elige uno de la lista."
     );
+  }
+
+  function agregarPago(medio: MedioDePago, monto: number) {
+    setPagos((actuales) => [...actuales, { id: crypto.randomUUID(), medio, monto }]);
+    setMensajeDeVenta("");
+  }
+
+  function quitarPago(id: string) {
+    setPagos((actuales) => actuales.filter((pago) => pago.id !== id));
+  }
+
+  function cerrarVenta() {
+    if (!puedeCerrar) return;
+    setMensajeDeVenta(
+      `Venta cerrada por ${formatearPesos(totales.total)}. La factura se genera en el siguiente paso.`
+    );
+    setLineas([]);
+    setPagos([]);
+    setEsMayorDeEdad(false);
   }
 
   return (
@@ -171,6 +207,53 @@ export default function PaginaVentas() {
           </dd>
         </dl>
       </section>
+
+      <section className="mt-6 rounded-xl border border-borde bg-superficie p-4">
+        <h2 className="text-xl font-bold">Verificación de edad</h2>
+        <label className="mt-3 flex min-h-12 items-center gap-3 font-semibold">
+          <input
+            type="checkbox"
+            checked={esMayorDeEdad}
+            onChange={(evento) => setEsMayorDeEdad(evento.target.checked)}
+            className="h-6 w-6"
+          />
+          Confirmo que el cliente es mayor de edad (18 años o más)
+        </label>
+      </section>
+
+      <PanelDePagos
+        pagos={pagos}
+        resumen={resumen}
+        total={totales.total}
+        alAgregar={agregarPago}
+        alQuitar={quitarPago}
+      />
+
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={cerrarVenta}
+          disabled={!puedeCerrar}
+          aria-describedby={puedeCerrar ? undefined : "motivos-pendientes"}
+          className="min-h-12 w-full rounded-lg bg-primario px-6 text-lg font-semibold text-primario-texto disabled:opacity-50"
+        >
+          Cerrar venta
+        </button>
+
+        {!puedeCerrar && (
+          <ul id="motivos-pendientes" className="mt-2 list-disc pl-6 text-sm text-texto-suave">
+            {motivosPendientes.map((motivo) => (
+              <li key={motivo}>{motivo}</li>
+            ))}
+          </ul>
+        )}
+
+        {mensajeDeVenta && (
+          <p role="status" className="mt-3 font-semibold text-exito">
+            {mensajeDeVenta}
+          </p>
+        )}
+      </div>
     </>
   );
 }
