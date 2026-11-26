@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MenuLateral } from "@/componentes/MenuLateral";
 import { nombresDeRoles, opcionesPorRol, rolTemporal } from "@/librerias/roles";
 
@@ -16,6 +17,12 @@ export default function DisposicionDelPanel({
           Rol: {nombresDeRoles[rolTemporal]}
         </p>
         <MenuLateral opciones={opciones} />
+        <Link
+          href="/iniciar-sesion"
+          className="mt-4 flex min-h-12 items-center rounded-lg border border-borde px-4 font-semibold hover:bg-fondo"
+        >
+          Cerrar sesión
+        </Link>
       </aside>
       <main className="flex-1 p-6">{children}</main>
     </div>

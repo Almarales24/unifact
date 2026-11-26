@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Errores = { correo?: string; contrasena?: string };
 
@@ -21,21 +22,20 @@ function validarFormulario(correo: string, contrasena: string): Errores {
 }
 
 export default function PaginaIniciarSesion() {
+  const router = useRouter();
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [errores, setErrores] = useState<Errores>({});
-  const [mensaje, setMensaje] = useState("");
 
   function manejarEnvio(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    setMensaje("");
 
     const erroresEncontrados = validarFormulario(correo, contrasena);
     setErrores(erroresEncontrados);
 
     if (Object.keys(erroresEncontrados).length > 0) return;
 
-    setMensaje("Datos válidos. La conexión con el servidor se agrega en el siguiente paso.");
+    router.push("/inicio");
   }
 
   return (
@@ -93,12 +93,6 @@ export default function PaginaIniciarSesion() {
           >
             Entrar
           </button>
-
-          {mensaje && (
-            <p role="status" className="text-sm text-exito">
-              {mensaje}
-            </p>
-          )}
         </form>
       </section>
     </main>
