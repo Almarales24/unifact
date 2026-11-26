@@ -37,3 +37,32 @@ body {
   outline: 3px solid var(--acento);
   outline-offset: 2px;
 }
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 4mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .zona-de-impresion,
+  .zona-de-impresion * {
+    visibility: visible;
+  }
+
+  .zona-de-impresion {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    border: none;
+  }
+}

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { FacturaImprimible } from "@/componentes/FacturaImprimible";
 import { PanelDePagos } from "@/componentes/PanelDePagos";
 import { productosDePrueba } from "@/librerias/productosDePrueba";
 import { calcularTotales, formatearPesos } from "@/librerias/impuestos";
 import { resumirPagos } from "@/librerias/pagos";
+import type { Factura } from "@/tipos/factura";
 import type { LineaDeVenta, Producto } from "@/tipos/producto";
 import type { MedioDePago, Pago } from "@/tipos/pago";
 
@@ -14,7 +16,7 @@ export default function PaginaVentas() {
   const [aviso, setAviso] = useState("");
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [esMayorDeEdad, setEsMayorDeEdad] = useState(false);
-  const [mensajeDeVenta, setMensajeDeVenta] = useState("");
+  const [facturaEmitida, setFacturaEmitida] = useState<Factura | null>(null);
 
   const textoBuscado = busqueda.trim().toLowerCase();
   const coincidencias = textoBuscado
@@ -49,7 +51,6 @@ export default function PaginaVentas() {
     });
     setBusqueda("");
     setAviso("");
-    setMensajeDeVenta("");
   }
 
   function cambiarCantidad(codigoDeBarras: string, cambio: number) {
@@ -89,7 +90,6 @@ export default function PaginaVentas() {
 
   function agregarPago(medio: MedioDePago, monto: number) {
     setPagos((actuales) => [...actuales, { id: crypto.randomUUID(), medio, monto }]);
-    setMensajeDeVenta("");
   }
 
   function quitarPago(id: string) {
@@ -98,12 +98,48 @@ export default function PaginaVentas() {
 
   function cerrarVenta() {
     if (!puedeCerrar) return;
-    setMensajeDeVenta(
-      `Venta cerrada por ${formatearPesos(totales.total)}. La factura se genera en el siguiente paso.`
-    );
+
+    // Número temporal: el consecutivo real lo dará Supabase.
+    setFacturaEmitida({
+      numero: `TEMP-${String(Date.now()).slice(-6)}`,
+      fechaIso: new Date().toISOString(),
+      lineas,
+      totales,
+      pagos,
+      cambio: resumen.cambio,
+    });
     setLineas([]);
     setPagos([]);
     setEsMayorDeEdad(false);
+  }
+
+  if (facturaEmitida) {
+    return (
+      <>
+        <h1 className="text-3xl font-bold">Venta cerrada</h1>
+
+        <div className="mt-4">
+          <FacturaImprimible factura={facturaEmitida} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="min-h-12 rounded-lg bg-primario px-6 font-semibold text-primario-texto"
+          >
+            Imprimir factura
+          </button>
+          <button
+            type="button"
+            onClick={() => setFacturaEmitida(null)}
+            className="min-h-12 rounded-lg border border-borde bg-superficie px-6 font-semibold"
+          >
+            Nueva venta
+          </button>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -246,12 +282,6 @@ export default function PaginaVentas() {
               <li key={motivo}>{motivo}</li>
             ))}
           </ul>
-        )}
-
-        {mensajeDeVenta && (
-          <p role="status" className="mt-3 font-semibold text-exito">
-            {mensajeDeVenta}
-          </p>
         )}
       </div>
     </>
